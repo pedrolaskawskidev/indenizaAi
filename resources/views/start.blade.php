@@ -162,98 +162,132 @@
 
         <div class="chat">
             <div class="messages" id="messages">
-                <div class="msg agent">Agente: Olá — descreva o acidente de trabalho e os principais danos.</div>
+                <div class="msg agent">
+                    <h3>📌 Dados essenciais para cálculo:</h3>
+
+                    <h4>1. Dados pessoais e contratuais</h4>
+                    <ul>
+                        <li>Nome do trabalhador</li>
+                        <li>Idade</li>
+                        <li>Cargo/função</li>
+                        <li>Tempo de serviço / vínculo empregatício</li>
+                        <li>Renda mensal (salário ou remuneração equivalente)</li>
+                        <li>Contrato de trabalho ou histórico de funções (se houver alterações salariais ou funções)
+                        </li>
+                    </ul>
+
+                    <h4>2. Acidente ou evento gerador da indenização</h4>
+                    <ul>
+                        <li>Data do acidente ou do fato gerador</li>
+                        <li>Tipo de acidente (trabalho, trajeto, doença ocupacional)</li>
+                        <li>Descrição das circunstâncias do acidente</li>
+                        <li>Tempo de afastamento do trabalho (dias, meses)</li>
+                    </ul>
+
+                    <h4>3. Sequelas e danos</h4>
+                    <ul>
+                        <li>Sequelas físicas ou psicológicas (detalhes para cálculo de danos estéticos e morais)</li>
+                        <li>Custos médicos e tratamentos realizados (danos materiais)</li>
+                        <li>Perda de capacidade de trabalho (para lucros cessantes)</li>
+                    </ul>
+
+                    <h4>4. Informações financeiras adicionais</h4>
+                    <ul>
+                        <li>Gastos comprovados com tratamentos médicos ou terapias</li>
+                        <li>Possível perda de lucros ou rendimentos futuros (se aplicável)</li>
+                    </ul>
+                </div>
+
+                <form id="chatForm" class="composer" onsubmit="return false;">
+                    <input id="input" type="text" placeholder="Digite sua pergunta ou informação do caso..."
+                        autocomplete="off">
+                    <button id="send">Enviar</button>
+                </form>
             </div>
-            <form id="chatForm" class="composer" onsubmit="return false;">
-                <input id="input" type="text" placeholder="Digite sua pergunta ou informação do caso..."
-                    autocomplete="off">
-                <button id="send">Enviar</button>
-            </form>
         </div>
-    </div>
 
-    <script>
-        const messages = document.getElementById('messages');
-        const input = document.getElementById('input');
-        const send = document.getElementById('send');
+        <script>
+            const messages = document.getElementById('messages');
+            const input = document.getElementById('input');
+            const send = document.getElementById('send');
 
-        let historico = [];
+            let historico = [];
 
-        function appendMessage(text, cls) {
-            const div = document.createElement('div');
-            div.className = 'msg ' + cls;
-            if (cls === 'agent') div.innerHTML = text;
-            else div.textContent = text;
-            messages.appendChild(div);
-            messages.scrollTop = messages.scrollHeight;
-        }
+            function appendMessage(text, cls) {
+                const div = document.createElement('div');
+                div.className = 'msg ' + cls;
+                if (cls === 'agent') div.innerHTML = text;
+                else div.textContent = text;
+                messages.appendChild(div);
+                messages.scrollTop = messages.scrollHeight;
+            }
 
-        function showTyping() {
-            const div = document.createElement('div');
-            div.id = 'typing';
-            div.className = 'msg agent typing';
-            div.textContent = 'Agente está digitando...';
-            messages.appendChild(div);
-            messages.scrollTop = messages.scrollHeight;
-        }
+            function showTyping() {
+                const div = document.createElement('div');
+                div.id = 'typing';
+                div.className = 'msg agent typing';
+                div.textContent = 'Agente está digitando...';
+                messages.appendChild(div);
+                messages.scrollTop = messages.scrollHeight;
+            }
 
-        function hideTyping() {
-            const div = document.getElementById('typing');
-            if (div) div.remove();
-        }
+            function hideTyping() {
+                const div = document.getElementById('typing');
+                if (div) div.remove();
+            }
 
-        async function postMessage(text) {
-            appendMessage(text, 'user');
-            send.disabled = true;
-            showTyping();
+            async function postMessage(text) {
+                appendMessage(text, 'user');
+                send.disabled = true;
+                showTyping();
 
-            try {
-                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                const res = await fetch('{{ url('/start/message') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': token
-                    },
-                    body: JSON.stringify({
-                        message: text,
-                        historico
-                    })
-                });
+                try {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const res = await fetch('{{ url('/start/message') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token
+                        },
+                        body: JSON.stringify({
+                            message: text,
+                            historico
+                        })
+                    });
 
-                const data = await res.json();
-                hideTyping();
+                    const data = await res.json();
+                    hideTyping();
 
-                if (res.ok) {
-                    appendMessage(data.reply, 'agent');
-                    historico = data.historico || historico;
-                } else {
-                    appendMessage('Erro: ' + (data.error || data.reply || 'Desconhecido'), 'agent');
+                    if (res.ok) {
+                        appendMessage(data.reply, 'agent');
+                        historico = data.historico || historico;
+                    } else {
+                        appendMessage('Erro: ' + (data.error || data.reply || 'Desconhecido'), 'agent');
+                    }
+
+                } catch (err) {
+                    hideTyping();
+                    appendMessage('Erro de rede: ' + err.message, 'agent');
+                } finally {
+                    send.disabled = false;
+                    input.focus();
                 }
-
-            } catch (err) {
-                hideTyping();
-                appendMessage('Erro de rede: ' + err.message, 'agent');
-            } finally {
-                send.disabled = false;
-                input.focus();
             }
-        }
 
-        send.addEventListener('click', () => {
-            const val = input.value.trim();
-            if (!val) return;
-            input.value = '';
-            postMessage(val);
-        });
+            send.addEventListener('click', () => {
+                const val = input.value.trim();
+                if (!val) return;
+                input.value = '';
+                postMessage(val);
+            });
 
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                send.click();
-            }
-        });
-    </script>
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    send.click();
+                }
+            });
+        </script>
 </body>
 
 </html>
